@@ -123,8 +123,11 @@ function startLongPoll(serverUrl, key, ts) {
 
 // 5. ИНИЦИАЛИЗАЦИЯ БОТА
 function initBot() {
+    const initUrl = `https://vk.com${TOKEN}&v=${API_VERSION}`
+    console.log('initBot', initUrl);
+    
     // Делаем явный запрос по строгому адресу без лишних склеек
-    https.get(`https://vk.com${TOKEN}&v=${API_VERSION}`, (res) => {
+    https.get(initUrl, (res) => {
         let body = '';
         res.on('data', chunk => body += chunk);
         res.on('end', () => {
@@ -137,8 +140,11 @@ function initBot() {
                 }
 
                 const groupId = json.response.groups[0].id;
+                const getUrl = `https://vk.com${groupId}&access_token=${TOKEN}&v=${API_VERSION}`
+                console.log('getUrl', getUrl);
                 
-                https.get(`https://vk.com${groupId}&access_token=${TOKEN}&v=${API_VERSION}`, (res2) => {
+                
+                https.get(getUrl, (res2) => {
                     let body2 = '';
                     res2.on('data', chunk => body2 += chunk);
                     res2.on('end', () => {
