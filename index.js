@@ -123,7 +123,7 @@ function startLongPoll(serverUrl, key, ts) {
 
 // 5. ИНИЦИАЛИЗАЦИЯ БОТА
 function initBot() {
-    const initUrl = `https://vk.com${TOKEN}&v=${API_VERSION}`
+    const initUrl = `https://vk.com/method/groups.getById?access_token=${TOKEN}&v=${API_VERSION}`
     console.log('initBot', initUrl);
     
     // Делаем явный запрос по строгому адресу без лишних склеек
