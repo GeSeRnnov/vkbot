@@ -20,9 +20,9 @@ if (fs.existsSync(envPath)) {
     });
 }
 
-const TOKEN = process.env.VK_TOKEN;
-const ADMIN_ID = Number(process.env.ADMIN_ID);
-const MAC = process.env.COMPUTER_MAC ? process.env.COMPUTER_MAC.replace(/-/g, ':').toLowerCase() : '';
+const TOKEN = process.env.TOKEN;
+const ADMIN_ID = Number(process.env.USER_ID);
+const MAC = process.env.MAC ? process.env.MAC.replace(/-/g, ':').toLowerCase() : '';
 
 if (!TOKEN || !ADMIN_ID || !MAC) {
     console.error('❌ Ошибка: Проверьте переменные в файле .env');
