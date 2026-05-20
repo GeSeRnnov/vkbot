@@ -26,7 +26,7 @@ if (fs.existsSync(envPath)) {
 const TOKEN = process.env.TOKEN;
 const ADMIN_ID = Number(process.env.USER_ID);
 const MAC = process.env.MAC ? process.env.MAC.replace(/-/g, ':').toLowerCase() : '';
-const API_VERSION = '5.199'; // Используем актуальную версию API
+const API_VERSION = '5.199';
 
 if (!TOKEN || !ADMIN_ID || !MAC) {
     console.error('❌ Ошибка: Проверьте переменные в файле .env');
@@ -62,11 +62,11 @@ function wakeComputer(macAddress, callback) {
     }
 }
 
-// 3. ОТПРАВКА СООБЩЕНИЙ (API 5.199)
+// 3. ОТПРАВКА СООБЩЕНИЙ В ВК
 function sendVkMessage(peerId, text) {
     const data = `peer_id=${peerId}&message=${encodeURIComponent(text)}&access_token=${TOKEN}&v=${API_VERSION}&random_id=${Math.floor(Math.random() * 1000000)}`;
     const req = https.request({
-        hostname: '://vk.com',
+        hostname: 'api.vk.com',
         path: '/method/messages.send',
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -76,9 +76,12 @@ function sendVkMessage(peerId, text) {
     req.end();
 }
 
-// 4. ПРОСЛУШИВАНИЕ LONG POLL (API 5.199)
-function startLongPoll(server, key, ts) {
-    https.get(`${server}?act=a_check&key=${key}&ts=${ts}&wait=25`, (res) => {
+// 4. ПРОСЛУШИВАНИЕ LONG POLL
+function startLongPoll(serverUrl, key, ts) {
+    // Безопасно очищаем адрес сервера от возможных двойных протоколов
+    let cleanUrl = serverUrl.replace(/^https?:\/\//i, '');
+    
+    https.get(`https://${cleanUrl}?act=a_check&key=${key}&ts=${ts}&wait=25`, (res) => {
         let body = '';
         res.on('data', chunk => body += chunk);
         res.on('end', () => {
@@ -89,7 +92,6 @@ function startLongPoll(server, key, ts) {
                 if (data.updates && data.updates.length > 0) {
                     data.updates.forEach(update => {
                         if (update.type === 'message_new') {
-                            // В API 5.199 объект сообщения лежит внутри свойства message
                             const messageObj = update.object.message;
                             if (!messageObj) return;
 
@@ -97,7 +99,7 @@ function startLongPoll(server, key, ts) {
                             const text = messageObj.text ? messageObj.text.toLowerCase().trim() : '';
 
                             if (fromId === ADMIN_ID && text === 'включи пк') {
-                                console.log(`[${new Date().toLocaleTimeString()}] Команда получена. Отправка WoL на ${MAC}...`);
+                                console.log(`[${new Date().toLocaleTimeString()}] Команда получена. Включаю ПК...`);
                                 
                                 wakeComputer(MAC, (err) => {
                                     if (err) {
@@ -111,35 +113,43 @@ function startLongPoll(server, key, ts) {
                         }
                     });
                 }
-                startLongPoll(server, key, data.ts);
+                startLongPoll(serverUrl, key, data.ts);
             } catch (e) {
-                console.error('Ошибка обработки Long Poll, перезапуск...');
                 setTimeout(initBot, 5000);
             }
         });
-    }).on('error', (e) => {
-        console.error('Ошибка сети Long Poll:', e.message);
-        setTimeout(initBot, 5000);
-    });
+    }).on('error', () => setTimeout(initBot, 5000));
 }
 
 // 5. ИНИЦИАЛИЗАЦИЯ БОТА
 function initBot() {
-    https.get(`https://://vk.com/method/groups.getById?access_token=${TOKEN}&v=${API_VERSION}`, (res) => {
+    // Делаем явный запрос по строгому адресу без лишних склеек
+    https.get(`https://vk.com${TOKEN}&v=${API_VERSION}`, (res) => {
         let body = '';
         res.on('data', chunk => body += chunk);
         res.on('end', () => {
             try {
                 const json = JSON.parse(body);
-                // В новых версиях ответ приходит в массиве response.groups
+                // Защита от ошибок авторизации
+                if (!json.response || !json.response.groups || json.response.groups.length === 0) {
+                    console.error('❌ Ошибка VK API. Возможно, неверный токен. Ответ сервера:', body);
+                    return setTimeout(initBot, 10000);
+                }
+
                 const groupId = json.response.groups[0].id;
                 
-                https.get(`https://://vk.com/method/groups.getLongPollServer?group_id=${groupId}&access_token=${TOKEN}&v=${API_VERSION}`, (res2) => {
+                https.get(`https://vk.com${groupId}&access_token=${TOKEN}&v=${API_VERSION}`, (res2) => {
                     let body2 = '';
                     res2.on('data', chunk => body2 += chunk);
                     res2.on('end', () => {
                         try {
-                            const response = JSON.parse(body2).response;
+                            const json2 = JSON.parse(body2);
+                            if (!json2.response) {
+                                console.error('❌ Не удалось получить Long Poll сервер. Ответ:', body2);
+                                return setTimeout(initBot, 10000);
+                            }
+
+                            const response = json2.response;
                             console.log('==================================================');
                             console.log(`🤖 Автономный ВК-бот запущен (API v${API_VERSION})`);
                             console.log(`🔒 Администратор: ID ${ADMIN_ID}`);
@@ -152,7 +162,7 @@ function initBot() {
                     });
                 });
             } catch(e) {
-                console.error('Ошибка авторизации. Проверьте правильность токена в .env');
+                console.error('Ошибка парсинга ответа авторизации, повтор...');
                 setTimeout(initBot, 5000);
             }
         });
