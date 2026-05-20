@@ -78,7 +78,6 @@ function sendVkMessage(peerId, text) {
 
 // 4. ПРОСЛУШИВАНИЕ LONG POLL
 function startLongPoll(serverUrl, key, ts) {
-    // Безопасно очищаем адрес сервера от возможных двойных протоколов
     let cleanUrl = serverUrl.replace(/^https?:\/\//i, '');
     
     https.get(`https://${cleanUrl}?act=a_check&key=${key}&ts=${ts}&wait=25`, (res) => {
@@ -123,7 +122,7 @@ function startLongPoll(serverUrl, key, ts) {
 
 // 5. ИНИЦИАЛИЗАЦИЯ БОТА
 function initBot() {
-    const initUrl = `https://vk.com/method/groups.getById?access_token=${TOKEN}&v=${API_VERSION}`
+    const initUrl = `https://api.vk.com/method/groups.getById?access_token=${TOKEN}&v=${API_VERSION}`
     console.log('initBot', initUrl);
     
     // Делаем явный запрос по строгому адресу без лишних склеек
@@ -140,7 +139,7 @@ function initBot() {
                 }
 
                 const groupId = json.response.groups[0].id;
-                const getUrl = `https://vk.com${groupId}&access_token=${TOKEN}&v=${API_VERSION}`
+                const getUrl = `https://api.vk.com/method/groups.getLongPollServer?group_id=${groupId}&access_token=${TOKEN}&v=${API_VERSION}`
                 console.log('getUrl', getUrl);
                 
                 
